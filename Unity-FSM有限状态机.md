@@ -12,9 +12,84 @@
 
 
 
-## 有限状态机代码编写
+## 通常的有限状态机
 
-​	如上所述，我们需要将代码变成三个部分，判断条件、角色状态、状态机，三个部分对应三个基类。下面将一一介绍。
+​	一般的状态机代码，会先有一个抽象的状态父类，其中包含两个抽象函数，一个是需要在进入状态的一开始就执行，一个是需要在程序执行的时候每一帧都执行，并由子类继承这个抽象父类，实现对应的两个函数。**切换条件需要写在每一帧都调用的函数中。**
+
+~~~c#
+public abstract class EnemyBaseState //状态父类
+{
+    public abstract void EnterState(Enemy enemy);
+
+    public abstract void OnUpdate(Enemy enemy);
+}
+
+public class PatrolState : EnemyBaseState //巡逻子类
+{
+    public override void EnterState(Enemy enemy)//进入状态函数
+    {
+        //此处省略
+    }
+
+    public override void OnUpdate(Enemy enemy)//每帧都需要执行
+    {
+        //此处省略
+
+        if(Mathf.Abs(enemy.transform.position.x - enemy.targetPoint.position.x) < 0.01f)//如果已经达到目标点
+        {
+            enemy.TransitionState(enemy.patrolState);//重新进入该状态
+        }
+
+        if(enemy.attackList.Count != 0)//攻击目标集合不为0
+        {
+            enemy.TransitionState(enemy.attackState);//切换为攻击状态
+        }
+    }
+}
+~~~
+
+​	在使用状态机时，就可以只创建抽象父类实例对象，在程序执行的过程中将不同的子类赋值给该对象（**里氏转换**），并调用其中的两个函数。
+
+​	当然，在执行各个状态中的函数时，不可避免的需要调用脚本中的参数，所以需要将**脚本的引用传递给状态机**。
+
+~~~c#
+public abstract class Enemy : MonoBehaviour
+{
+	[Header("状态机相关")]
+    
+    //创建状态机对象
+    EnemyBaseState currentState; 
+    
+    //实例化子类对象
+    public PatrolState patrolState = new PatrolState();
+    public AttackState attackState = new AttackState();
+
+    //程序开始时，设置初始状态
+	protected virtual void Start()
+    {
+        TransitionState(patrolState);
+    }
+    
+    public void TransitionState(EnemyBaseState state)//切换状态类的函数
+    {
+        currentState = state;
+        currentState.EnterState(this);//进入状态需要执行的函数
+    }
+    
+    protected virtual void Update()
+    {
+        currentState.OnUpdate(this); //各个状态中每一帧都需要执行的函数
+    }
+}
+~~~
+
+
+
+## #将条件写成类的有限状态机
+
+​	如上所述，我们需要将代码变成三个部分，判断条件、角色状态、状态机，三个部分对应三个基类。这样的写法，需要将在状态类中实例化条件类的对象，从而进行条件的判断。
+
+​	下面将一一介绍：
 
 
 
